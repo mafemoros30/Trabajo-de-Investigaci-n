@@ -24,41 +24,35 @@ def compute_distance(x1, y1, x2, y2, conversion=10):
 
 # fuction to calculate stance time considering 4 different cases 
 def compute_stance_time_detailed(time, heel_strikes, toe_offs):
+    heel_strikes = np.asarray(heel_strikes)
+    toe_offs = np.asarray(toe_offs)
+
     stance_times = []
-    n_hs = len(heel_strikes) # número total de eventos heel strike detectados.
-    n_to = len(toe_offs) # número total de eventos toe off detectados.
-    if n_hs == 0 or n_to == 0:
-        return np.array([]) # Si no hay ninguno de los dos tipos de evento, no se puede calcular stance time → devuelve un array vacío.
-    
-    if n_hs == n_to: # El último HS es posterior al último TO
-        if heel_strikes[-1] > toe_offs[-1]:
-            for j in range(n_hs - 1):
-                #stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                stance = abs(time[toe_offs[j + 1]] - time[heel_strikes[j]])
+    if len(heel_strikes) < 2 or len(toe_offs) < 1:
+        return np.array([])
+
+    j = 0  # puntero para toe_offs
+
+    for i in range(len(heel_strikes) - 1):
+        hs_i = heel_strikes[i]
+        hs_next = heel_strikes[i + 1]
+
+        # avanzar toe-offs hasta el primero que quede DESPUÉS del HS actual
+        while j < len(toe_offs) and toe_offs[j] <= hs_i:
+            j += 1
+
+        # si el toe-off cae antes del siguiente HS, es válido
+        if j < len(toe_offs) and toe_offs[j] < hs_next:
+            stance = time[toe_offs[j]] - time[hs_i]   # SIN abs()
+            # validación de seguridad
+            if stance >= 0:
                 stance_times.append(stance)
-        elif heel_strikes[-1] < toe_offs[-1]:
-            for j in range(n_to - 1):
-                #stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                stance = abs(time[toe_offs[j]] - time[heel_strikes[j + 1]])
-                stance_times.append(stance)
-    elif n_hs < n_to:
-            for j in range(n_hs):
-                if j + 1 < len(toe_offs):
-                    #stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                    stance = abs(time[toe_offs[j + 1]] - time[heel_strikes[j]])
-                    stance_times.append(stance)
-    elif n_hs > n_to:
-        if heel_strikes[-1] > toe_offs[-1]:
-            for j in range(n_to):
-                #stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                stance_times.append(stance)
-        elif heel_strikes[-1] < toe_offs[-1]:
-            for j in range(n_to):
-                if j + 1 < len(heel_strikes):
-                    #stance = abs(time[toe_offs[j]] - time[heel_strikes[j]])
-                    stance = abs(time[toe_offs[j]] - time[heel_strikes[j + 1]])
-                    stance_times.append(stance)
+            else:
+                stance_times.append(np.nan)
+        else:
+            # no hay toe-off válido en ese stride
+            stance_times.append(np.nan)
+
     return np.array(stance_times)
 
 # function to calculate swing time 
@@ -276,6 +270,7 @@ def compute_spatiotemporal_variables(df, heel_strike_R, heel_strike_L, toe_off_R
      right_stride_time, left_step_time,  left_stance_time) = compute_L_step_width_and_length(
          df, heel_strike_R, heel_strike_L, toe_off_L
      )
+    
     
     # Cálculos para el lado derecho (usando eventos del pie izquierdo y toe-off derecho)
     (left_stride_length, right_step_width, right_step_length,
@@ -497,7 +492,8 @@ def process_spatiotemporal_for_patient(patient_df,
 
 def concatenar_datos_espaciotemporales():
     # Ruta de la carpeta con tus archivos
-    carpeta = Path(r"C:/Users/57316/OneDrive/Escritorio/2025-I/TRABAJO DE GRADO I/DATA SETS/S001/S001")  # ej.: ...\DATA SETS\S001\S001_organizado
+    carpeta = Path(r"C:\Users\57316\OneDrive\Escritorio\2025-I\TRABAJO DE GRADO I\DATA SETS\S003")
+      # ej.: ...\DATA SETS\S001\S001_organizado  
 
     # Regex para nombres tipo S001_G01_D01_B01_T01.csv
     patron = re.compile(r"^(S\d+)_G(\d+)_D(\d+)_B(\d+)_T(\d+)\.csv$", re.IGNORECASE)
@@ -546,6 +542,6 @@ def concatenar_datos_espaciotemporales():
         print("⚠️ Archivos ignorados por no cumplir el patrón:")
         for n in no_match:
             print(" -", n)
-    process_spatiotemporal_for_patient(df_total,"S001","C:/Users/57316/OneDrive/Escritorio/2025-I/tutorial/RESULTADOS",100,True)
+    process_spatiotemporal_for_patient(df_total,"S003","C:/Users/57316/OneDrive/Escritorio/2025-I/tutorial/RESULTADOS",200,True)
 
 concatenar_datos_espaciotemporales()
