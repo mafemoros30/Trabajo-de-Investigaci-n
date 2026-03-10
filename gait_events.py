@@ -34,6 +34,7 @@ def gait_events_HC_JA(df):
     heel_strike_R = [i for i in heel_strike_R if contact_R[i] == 1000]
     heel_strike_L = [i for i in heel_strike_L if contact_L[i] == 1000]
 
+
     # Toe-Off Detection - Knee flexion velocity and hip acceleration peaks
     knee_vel_R = np.gradient(knee_flex_R, time)  # Right knee velocity
     knee_vel_L = np.gradient(knee_flex_L, time)  # Left knee velocity
@@ -163,6 +164,11 @@ def gait_events_simple(df):
 
     toe_off_R = np.where((contact_R[:-1]) & (~contact_R[1:]))[0] + 1
     toe_off_L = np.where((contact_L[:-1]) & (~contact_L[1:]))[0] + 1
+
+    print("HS_R first 20:", heel_strike_R[:20])
+    print("HS_L first 20:", heel_strike_L[:20])
+    print("HS_R intervals:", np.diff(heel_strike_R)[:20])
+    print("HS_L intervals:", np.diff(heel_strike_L)[:20])
     #print("Heel Strikes (Right):", len(heel_strike_R))
     #print("Heel Strikes (Left):", len(heel_strike_L)) 
 

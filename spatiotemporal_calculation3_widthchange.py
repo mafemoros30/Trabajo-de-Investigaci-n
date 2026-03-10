@@ -70,140 +70,175 @@ def compute_swing_time(stride_times, stance_times):
     return swing_times
 
 def compute_L_step_width_and_length(df, heel_strike_R, heel_strike_L, toe_off_L):
-
-    # Trayectorias
-    RX = df["Noraxon MyoMotion-Trajectories-Heel RT-x (mm)"].values
-    RY = df["Noraxon MyoMotion-Trajectories-Heel RT-y (mm)"].values
-    LX = df["Noraxon MyoMotion-Trajectories-Heel LT-x (mm)"].values
-    LY = df["Noraxon MyoMotion-Trajectories-Heel LT-y (mm)"].values
+    # Extraer las trayectorias de la base de datos
+    rightXTraj = df["Noraxon MyoMotion-Trajectories-Heel RT-x (mm)"].values
+    rightYTraj = df["Noraxon MyoMotion-Trajectories-Heel RT-y (mm)"].values
+    leftXTraj = df["Noraxon MyoMotion-Trajectories-Heel LT-x (mm)"].values
+    leftYTraj = df["Noraxon MyoMotion-Trajectories-Heel LT-y (mm)"].values
     time = df["time"].values
 
-    # Outputs
-    right_stride_length = []
-    right_stride_time   = []
-    left_step_length    = []
-    left_step_width     = []
-    left_step_time      = []
+    # Son acumuladores para ir guardando cada medición
+    right_stride_length = [] #Longitud de zancada del pie derecho
+    right_stride_time = [] # tiempo de zancada del pie derecho
+    left_step_width = [] # Ancho de paso izquierdo  
+    left_step_length = [] # Longitud de paso del pie izquierdo
+    left_step_time = [] # tiempo de paso del pie izquierdo
 
-    # Loop por cada stride derecho
-    for i in range(len(heel_strike_R) - 1):
 
-        R0 = heel_strike_R[i]
-        R1 = heel_strike_R[i + 1]
-
-        # Dirección del stride derecho
-        v = np.array([RX[R1] - RX[R0], RY[R1] - RY[R0]])
-        norm = np.linalg.norm(v)
-        if norm == 0:
-            continue
-        D = v / norm
-
-        # Stride length/time (derecho)
-        stride_len = norm / 10  # mm → cm
-        stride_time = time[R1] - time[R0]
-
-        right_stride_length.append(stride_len)
-        right_stride_time.append(stride_time)
-
-        # Buscar HS izquierdo dentro del stride
-        candidates = [L for L in heel_strike_L if R0 < L <= R1]
-        if not candidates:
+    # Cuando vas a recorrer dos listas a la vez (HS derecho y HS izquierdo), si una es más corta que la otra 
+    # y tratas de acceder a un índice que no existe, Python da error de índice (IndexError).
+    n = min(len(heel_strike_R), len(heel_strike_L))
+    for i in range(n - 1):
+        R_idx = heel_strike_R[i]
+        L_idx = heel_strike_L[i]
+        R_next = heel_strike_R[i + 1]
+        if R_idx >= len(time) or L_idx >= len(time) or R_next >= len(time): # Evita índices fuera de rango
             continue
 
-        L0 = candidates[0]
+        # stride length and time 
+        # Usa la función compute_distance para calcular en cm la distancia entre dos HS consecutivos del pie derecho.
+        stride = compute_distance(rightXTraj[R_idx], rightYTraj[R_idx],
+                                  rightXTraj[R_next], rightYTraj[R_next])
+        right_stride_length.append(stride)
+        right_stride_time.append(time[R_next] - time[R_idx])
 
-        # Vector desde pie derecho al izquierdo
-        vL = np.array([LX[L0] - RX[R0], LY[L0] - RY[R0]])
+        #step length and time 
+        # loop over each right‑foot stride
+        for i in range(len(heel_strike_R) - 1):
+            R0 = heel_strike_R[i] # índice del HS derecho actual.
+            R1 = heel_strike_R[i+1] # índice del siguiente HS derecho
 
-        # Step length (proyección)
-        step_len = np.dot(vL, D) / 10  # mm → cm
-        left_step_length.append(step_len)
+            # find the left HS that falls between R0 and R1
+            candidates = [l for l in heel_strike_L if R0 < l <= R1]
+            if not candidates: # Si no encuentra ninguno, salta al siguiente ciclo
+                continue
+            L0 = candidates[0] # Si encuentra, toma el primero 
 
-        # Step width (perpendicular)
-        lateral_vec = vL - np.dot(vL, D) * D
-        step_wid = np.linalg.norm(lateral_vec) / 10
-        left_step_width.append(step_wid)
+            # 1) local forward direction D = unit vector from R0 → R1
+            v = np.array([rightXTraj[R1] - rightXTraj[R0], #longitud de ese vector.
+                      rightYTraj[R1] - rightYTraj[R0]])
+            norm = np.linalg.norm(v)
+            if norm == 0: # Si la longitud es 0 (no hay movimiento), salta.
+                continue
+            D = v / norm 
 
-        # Step time
-        left_step_time.append(time[L0] - time[R0])
+            left_len = 0
+            # 2) left step vector: from R0 to L0
+            vL = np.array([leftXTraj[L0] - rightXTraj[R0],  
+                       leftYTraj[L0] - rightYTraj[R0]]) 
+            left_len = np.dot(vL, D) / 10
+            left_step_length.append(left_len) 
+            left_step_time.append(time[L0] - time[R0]) #Calcula el tiempo del paso izquierdo 
+            # como la diferencia de tiempos entre el HS derecho inicial y el HS izquierdo.
+        
+        #step width
+        dist_R_to_L = compute_distance(rightXTraj[R_idx], rightYTraj[R_idx],
+                                       leftXTraj[L_idx], leftYTraj[L_idx])
+        dist_nextR_to_L = compute_distance(rightXTraj[R_next], rightYTraj[R_next],
+                                           leftXTraj[L_idx], leftYTraj[L_idx])
+        c = stride
 
-    # Stance time izquierdo
+        # formula de Herón donde la altura del triangulo es el ancho del paso
+    
+        if dist_R_to_L > 0 and dist_nextR_to_L > 0 and c > 0:   
+            s = (dist_R_to_L + dist_nextR_to_L + c) / 2
+            try:
+                area = np.sqrt(s * (s - dist_R_to_L) * (s - dist_nextR_to_L) * (s - c))
+                step_width = (2 * area) / dist_R_to_L
+            except Exception:
+                step_width = np.nan
+        else:
+            step_width = np.nan
+        left_step_width.append(step_width)
+        
+        
+
+    #Stance time 
     left_stance_time = compute_stance_time_detailed(time, heel_strike_L, toe_off_L)
-
-    return (np.array(right_stride_length),
-            np.array(left_step_width),
-            np.array(left_step_length),
-            np.array(right_stride_time),
-            np.array(left_step_time),
-            left_stance_time)
-
+    
+    return (np.array(right_stride_length), np.array(left_step_width), np.array(left_step_length),
+            np.array(right_stride_time), np.array(left_step_time), left_stance_time)
 
 # Cálculos para el lado derecho (usando eventos del pie izquierdo y toe-off derecho)
 def compute_R_step_width_and_length(df, heel_strike_R, heel_strike_L, toe_off_R):
-
-    RX = df["Noraxon MyoMotion-Trajectories-Heel RT-x (mm)"].values
-    RY = df["Noraxon MyoMotion-Trajectories-Heel RT-y (mm)"].values
-    LX = df["Noraxon MyoMotion-Trajectories-Heel LT-x (mm)"].values
-    LY = df["Noraxon MyoMotion-Trajectories-Heel LT-y (mm)"].values
+    rightXTraj = df["Noraxon MyoMotion-Trajectories-Heel RT-x (mm)"].values
+    rightYTraj = df["Noraxon MyoMotion-Trajectories-Heel RT-y (mm)"].values
+    leftXTraj = df["Noraxon MyoMotion-Trajectories-Heel LT-x (mm)"].values
+    leftYTraj = df["Noraxon MyoMotion-Trajectories-Heel LT-y (mm)"].values
     time = df["time"].values
 
     left_stride_length = []
-    left_stride_time   = []
-    right_step_length  = []
-    right_step_width   = []
-    right_step_time    = []
+    left_stride_time = []
+    right_step_width = []
+    right_step_length = []
+    right_step_time = []
 
-    # Loop por cada stride izquierdo
-    for i in range(len(heel_strike_L) - 1):
-
-        L0 = heel_strike_L[i]
-        L1 = heel_strike_L[i + 1]
-
-        # Dirección del stride izquierdo
-        v = np.array([LX[L1] - LX[L0], LY[L1] - LY[L0]])
-        norm = np.linalg.norm(v)
-        if norm == 0:
-            continue
-        D = v / norm
-
-        # Stride length/time (izquierdo)
-        stride_len = norm / 10
-        stride_time = time[L1] - time[L0]
-
-        left_stride_length.append(stride_len)
-        left_stride_time.append(stride_time)
-
-        # Buscar HS derecho dentro del stride
-        candidates = [R for R in heel_strike_R if L0 < R <= L1]
-        if not candidates:
+    n = min(len(heel_strike_R), len(heel_strike_L))
+    for i in range(n - 1):
+        L_idx = heel_strike_L[i]
+        R_idx = heel_strike_R[i]
+        L_next = heel_strike_L[i + 1]
+        if L_idx >= len(time) or R_idx >= len(time) or L_next >= len(time):
             continue
 
-        R0 = candidates[0]
+        # Stride time and length 
+        stride = compute_distance(leftXTraj[L_idx], leftYTraj[L_idx],
+                                  leftXTraj[L_next], leftYTraj[L_next])
+        left_stride_length.append(stride)
+        left_stride_time.append(time[L_next] - time[L_idx])
 
-        # Vector desde pie izquierdo al derecho
-        vR = np.array([RX[R0] - LX[L0], RY[R0] - LY[L0]])
+        # Step time and length 
+        # loop over each right‑foot stride
+        for i in range(len(heel_strike_R) - 1):
+            R0 = heel_strike_R[i]
+            R1 = heel_strike_R[i+1]
 
-        # Step length
-        step_len = np.dot(vR, D) / 10
-        right_step_length.append(step_len)
+            # find the left HS that falls between R0 and R1
+            candidates = [l for l in heel_strike_L if R0 < l <= R1]
+            if not candidates:
+                continue
+            L0 = candidates[0]
 
-        # Step width
-        lateral_vec = vR - np.dot(vR, D) * D
-        step_wid = np.linalg.norm(lateral_vec) / 10
-        right_step_width.append(step_wid)
+            # 1) local forward direction D = unit vector from R0 → R1
+            v = np.array([rightXTraj[R1] - rightXTraj[R0],
+                      rightYTraj[R1] - rightYTraj[R0]])
+            norm = np.linalg.norm(v)
+            if norm == 0:
+                continue
+            D = v / norm
 
-        # Step time
-        right_step_time.append(time[R0] - time[L0])
+            # 3) right step vector: from L0 to R1
+            vR = np.array([rightXTraj[R1] - leftXTraj[L0],
+                       rightYTraj[R1] - leftYTraj[L0]])
+            right_len = np.dot(vR, D) / 10  # mm→cm
+            right_step_length.append(right_len)
+            right_step_time.append(time[R1] - time[L0])
 
-    # Stance time derecho
+        #step width 
+        dist_L_to_R = compute_distance(leftXTraj[L_idx], leftYTraj[L_idx],
+                                       rightXTraj[R_idx], rightYTraj[R_idx])
+        dist_nextL_to_R = compute_distance(leftXTraj[L_next], leftYTraj[L_next],
+                                           rightXTraj[R_idx], rightYTraj[R_idx])
+        c = stride
+        if dist_L_to_R > 0 and dist_nextL_to_R > 0 and c > 0:
+            s = (dist_L_to_R + dist_nextL_to_R + c) / 2
+            try:
+                area = np.sqrt(s * (s - dist_L_to_R) * (s - dist_nextL_to_R) * (s - c))
+                step_width = (2 * area) / dist_L_to_R
+            except Exception:
+                step_width = np.nan
+        else:
+            step_width = np.nan
+
+        right_step_width.append(step_width)
+
+
     right_stance_time = compute_stance_time_detailed(time, heel_strike_R, toe_off_R)
+    
+    
 
-    return (np.array(left_stride_length),
-            np.array(right_step_width),
-            np.array(right_step_length),
-            np.array(left_stride_time),
-            np.array(right_step_time),
-            right_stance_time)
+    return (np.array(left_stride_length), np.array(right_step_width), np.array(right_step_length),
+            np.array(left_stride_time), np.array(right_step_time), right_stance_time)
 
 # Cálculo de la cadencia: pasos por minuto
 def compute_cadence(df, heel_strike_R, heel_strike_L):
@@ -470,7 +505,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save mean
     if mean_results:
         final_mean = pd.concat(mean_results, ignore_index=True)
-        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean2.csv")
+        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean3.csv")
         if os.path.exists(mean_path): os.remove(mean_path)
         final_mean.to_csv(mean_path, index=False)
         if verbose: print(f"[INFO] Saved mean summary: {mean_path}")
@@ -478,7 +513,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save std
     if std_results:
         final_std = pd.concat(std_results, ignore_index=True)
-        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std2.csv")
+        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std3.csv")
         if os.path.exists(std_path): os.remove(std_path)
         final_std.to_csv(std_path, index=False)
         if verbose: print(f"[INFO] Saved std summary: {std_path}")
@@ -540,6 +575,4 @@ def concatenar_datos_espaciotemporales():
             print(" -", n)
     process_spatiotemporal_for_patient(df_total,"S006","C:\\Users\\57316\\OneDrive\\Escritorio\\2025-I\\tutorial\\RESULTADOS",200,True)
 
-if __name__ == "__main__":
-    process_spatiotemporal_for_patient(...)
-    concatenar_datos_espaciotemporales()
+concatenar_datos_espaciotemporales()

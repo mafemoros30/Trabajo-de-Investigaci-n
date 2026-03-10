@@ -532,7 +532,7 @@ def process_spatiotemporal_for_patient(patient_df,
 
 def concatenar_datos_espaciotemporales():
     # Ruta de la carpeta con tus archivos
-    carpeta = Path(r"C:/Users/57316/OneDrive/Escritorio/2025-I/TRABAJO DE GRADO I/DATA SETS/S001/S001")  # ej.: ...\DATA SETS\S001\S001_organizado
+    carpeta = Path(r"C:/Users/57316/OneDrive/Escritorio/2025-I/TRABAJO DE GRADO I/DATA SETS/S004")  # ej.: ...\DATA SETS\S001\S001_organizado
 
     # Regex para nombres tipo S001_G01_D01_B01_T01.csv
     patron = re.compile(r"^(S\d+)_G(\d+)_D(\d+)_B(\d+)_T(\d+)\.csv$", re.IGNORECASE)
@@ -581,6 +581,9 @@ def concatenar_datos_espaciotemporales():
         print("⚠️ Archivos ignorados por no cumplir el patrón:")
         for n in no_match:
             print(" -", n)
-    process_spatiotemporal_for_patient(df_total,"S001","C:/Users/57316/OneDrive/Escritorio/2025-I/tutorial/RESULTADOS",100,True)
+            
+if __name__ == "__main__":
+    process_spatiotemporal_for_patient(df_total,"S004","C:/Users/57316/OneDrive/Escritorio/2025-I/tutorial/RESULTADOS",200,True)
+    concatenar_datos_espaciotemporales()
 
-concatenar_datos_espaciotemporales()
+

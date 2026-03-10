@@ -22,7 +22,7 @@ from Data_loader  import (
     load_and_clean_csv,
     summarize_file
 )
-from SpatioTemporal_calculation import process_spatiotemporal_for_patient
+from spatiotemporal_calculation2 import process_spatiotemporal_for_patient
 from summary_utils import save_trial_summary, ensure_dir
 from downsample import downsample_df
 from gait_events import gait_events_HC_JA
@@ -284,7 +284,7 @@ def segment_patient_cycles(patient_id, group_code, source="raw", verbose=False):
             continue
 
         df = pd.read_csv(path)
-        cycles = segment_cycles(df)
+        cycles = segment_cycles_simple(df, print_cycle_length=False)
         if not cycles:
             if verbose: print(f"[WARN] no cycles found in {os.path.basename(path)}")
             continue
