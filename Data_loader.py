@@ -16,7 +16,7 @@ trials = ["T01", "T02", "T03"]
 project_root = "C:\\Users\\57316\\OneDrive\\Escritorio\\2025-I\\TRABAJO DE GRADO I\\DATA SETS\\G01" #Now the database is in the server
 base_folders = {
     "G01": os.path.join(project_root, "young adults (19–35 years old)"),
-
+    "G03": os.path.join(project_root, "older adults (60–75 years old)")
 }
 
 # root folder for all EDA outputs (keep uppercase)
