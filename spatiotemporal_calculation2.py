@@ -470,7 +470,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save mean
     if mean_results:
         final_mean = pd.concat(mean_results, ignore_index=True)
-        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean2.csv")
+        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean_preprocessing.csv")
         if os.path.exists(mean_path): os.remove(mean_path)
         final_mean.to_csv(mean_path, index=False)
         if verbose: print(f"[INFO] Saved mean summary: {mean_path}")
@@ -478,7 +478,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save std
     if std_results:
         final_std = pd.concat(std_results, ignore_index=True)
-        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std2.csv")
+        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std_preprocessing.csv")
         if os.path.exists(std_path): os.remove(std_path)
         final_std.to_csv(std_path, index=False)
         if verbose: print(f"[INFO] Saved std summary: {std_path}")
@@ -488,8 +488,8 @@ def process_spatiotemporal_for_patient(patient_df,
 
 def concatenar_datos_espaciotemporales():
     # Ruta de la carpeta con tus archivos
-    carpeta = Path(r"C:\Users\57316\OneDrive\Escritorio\2025-I\TRABAJO DE GRADO I\DATA SETS\G01\S006")
-      # ej.: ...\DATA SETS\S001\S001_organizado  
+    carpeta = Path(r"C:\Users\57316\OneDrive\Escritorio\2025-I\TRABAJO DE GRADO I\DATA SETS\G01\young adults (19–35 years old)\S006\trimmed")
+      # ej.: ...\DATA SETS\S001\S001_organizado
 
     # Regex para nombres tipo S001_G01_D01_B01_T01.csv
     patron = re.compile(r"^(S\d+)_G(\d+)_D(\d+)_B(\d+)_T(\d+)\.csv$", re.IGNORECASE)
@@ -541,5 +541,4 @@ def concatenar_datos_espaciotemporales():
     process_spatiotemporal_for_patient(df_total,"S006","C:\\Users\\57316\\OneDrive\\Escritorio\\2025-I\\tutorial\\RESULTADOS",200,True)
 
 if __name__ == "__main__":
-    process_spatiotemporal_for_patient(...)
     concatenar_datos_espaciotemporales()

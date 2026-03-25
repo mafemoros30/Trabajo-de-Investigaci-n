@@ -72,8 +72,8 @@ def segment_cycles_simple(df,print_cycle_length=False):
     cycles = []
     for i in range(len(hs_R)-1):
         start, end = hs_R[i], hs_R[i+1]
-        cycle = df.iloc[start:end].reset_index(drop=True)
+        cycle = df.iloc[start:end+1].reset_index(drop=True)
         if print_cycle_length:
-            print(f"Cycle {i}: length = {end - start} samples")
+            print(f"Cycle {i}: length = {end - start + 1} samples")
         cycles.append(cycle)
     return cycles
