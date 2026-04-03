@@ -470,7 +470,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save mean
     if mean_results:
         final_mean = pd.concat(mean_results, ignore_index=True)
-        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean_preprocessing.csv")
+        mean_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_mean_preprocessing_final.csv")
         if os.path.exists(mean_path): os.remove(mean_path)
         final_mean.to_csv(mean_path, index=False)
         if verbose: print(f"[INFO] Saved mean summary: {mean_path}")
@@ -478,7 +478,7 @@ def process_spatiotemporal_for_patient(patient_df,
     # Combine and save std
     if std_results:
         final_std = pd.concat(std_results, ignore_index=True)
-        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std_preprocessing.csv")
+        std_path = os.path.join(output_folder, f"{patient_id}_spatiotemporal_std_preprocessing_final.csv")
         if os.path.exists(std_path): os.remove(std_path)
         final_std.to_csv(std_path, index=False)
         if verbose: print(f"[INFO] Saved std summary: {std_path}")
@@ -486,59 +486,80 @@ def process_spatiotemporal_for_patient(patient_df,
     if not mean_results and not std_results and verbose:
         print(f"[WARN] No spatiotemporal data for patient {patient_id}")
 
-def concatenar_datos_espaciotemporales():
-    # Ruta de la carpeta con tus archivos
-    carpeta = Path(r"C:\Users\57316\OneDrive\Escritorio\2025-I\TRABAJO DE GRADO I\DATA SETS\G01\young adults (19–35 years old)\S006\trimmed")
-      # ej.: ...\DATA SETS\S001\S001_organizado
 
-    # Regex para nombres tipo S001_G01_D01_B01_T01.csv
+def procesar_grupo_desde_trimmed(base_dir, sampling_rate=200, verbose=True):
+    """
+    Recorre todos los sujetos dentro de base_dir.
+    En cada sujeto busca la carpeta 'trimmed', combina los CSV válidos
+    y genera los archivos de medias y desviaciones por sujeto.
+    """
+    base_dir = Path(base_dir)
+
+    # patrón: S001_G01_D01_B01_T01.csv
     patron = re.compile(r"^(S\d+)_G(\d+)_D(\d+)_B(\d+)_T(\d+)\.csv$", re.IGNORECASE)
 
-    # Si quieres solo la carpeta actual usa: archivos = carpeta.glob("*.csv")
-    archivos = carpeta.rglob("*.csv")  # incluye subcarpetas
-
-    dfs = []
-    no_match = []
-
-    for p in archivos:
-        m = patron.match(p.name)
-        if not m:
-            no_match.append(p.name)
+    for paciente_folder in base_dir.iterdir():
+        if not paciente_folder.is_dir():
             continue
 
-        paciente, grupo, dia, bloque, sesion = m.groups()
+        patient_id = paciente_folder.name
+        trimmed_dir = paciente_folder / "trimmed"
 
-        # Si tus CSV usan ';' cambia sep=';'
-        df = pd.read_csv(p, encoding="utf-8", sep=",")  
+        if not trimmed_dir.exists():
+            print(f"[WARN] {patient_id} no tiene carpeta 'trimmed'")
+            continue
 
-        # Añadir columnas con metadatos
-        df["day"] = dia
-        df["block"] = bloque
-        df["trial"] = sesion
+        if verbose:
+            print(f"\nProcesando {patient_id}...")
 
+        archivos = trimmed_dir.rglob("*.csv")
+        dfs = []
+        no_match = []
 
-        dfs.append(df)
+        for p in archivos:
+            m = patron.match(p.name)
+            if not m:
+                no_match.append(p.name)
+                continue
 
-    # Combinar todo
-    if not dfs:
-        raise RuntimeError("No se encontraron CSV válidos con el patrón esperado.")
+            paciente, grupo, dia, bloque, sesion = m.groups()
 
-    df_total = pd.concat(dfs, ignore_index=True)
+            try:
+                df = pd.read_csv(p, encoding="utf-8", sep=",")
+            except UnicodeDecodeError:
+                df = pd.read_csv(p, encoding="latin-1", sep=",")
 
-    # Guardar combinados
-    salida_csv = carpeta / "datos_combinados.csv"
-    df_total.to_csv(salida_csv, index=False, encoding="utf-8")
-    print(f"✅ CSV combinado guardado en: {salida_csv}")
+            df["day"] = f"D{dia}"
+            df["block"] = f"B{bloque}"
+            df["trial"] = f"T{sesion}"
+            dfs.append(df)
 
-    # (Opcional) guardar también en Parquet (más eficiente)
-    # df_total.to_parquet(carpeta / "datos_combinados.parquet", index=False)
+        if not dfs:
+            print(f"[WARN] {patient_id}: no se encontraron CSV válidos")
+            continue
 
-    # Reporte de archivos que no cumplieron el patrón
-    if no_match:
-        print("⚠️ Archivos ignorados por no cumplir el patrón:")
-        for n in no_match:
-            print(" -", n)
-    process_spatiotemporal_for_patient(df_total,"S006","C:\\Users\\57316\\OneDrive\\Escritorio\\2025-I\\tutorial\\RESULTADOS",200,True)
+        df_total = pd.concat(dfs, ignore_index=True)
+
+        # opcional: guardar combinado por sujeto
+        combinado_path = paciente_folder / f"{patient_id}_datos_combinados.csv"
+        df_total.to_csv(combinado_path, index=False, encoding="utf-8-sig")
+
+        # guardar resultados en la carpeta del sujeto
+        output_folder = paciente_folder
+
+        process_spatiotemporal_for_patient(
+            patient_df=df_total,
+            patient_id=patient_id,
+            output_folder=str(output_folder),
+            sampling_rate=sampling_rate,
+            verbose=verbose
+        )
+
+        if no_match and verbose:
+            print(f"[INFO] {patient_id}: archivos ignorados por nombre no válido:")
+            for n in no_match:
+                print(f" - {n}")
 
 if __name__ == "__main__":
-    concatenar_datos_espaciotemporales()
+    base_dir = r"C:\Users\57316\OneDrive\Escritorio\2025-I\TRABAJO DE GRADO I\DATA SETS\G01\young adults (19–35 years old)"
+    procesar_grupo_desde_trimmed(base_dir, sampling_rate=200, verbose=True)
